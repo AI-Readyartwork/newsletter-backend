@@ -1,0 +1,12 @@
+# Nixpacks configuration for Python backend
+[phases.setup]
+nixPkgs = ["python313Full"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["echo 'Build complete'"]
+
+[start]
+cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"

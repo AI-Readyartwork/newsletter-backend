@@ -240,7 +240,7 @@ Provide:
 1. whyItMatters: 1-2 sentence explanation of business impact
 2. actionItems: Array of 1-2 specific actions
 
-Respond in JSON format: {{"whyItMatters": "...", "actionItems": ["...", "..."]}}
+Respond in valid JSON with keys whyItMatters and actionItems.
 Keep under 80 words total."""),
             ("user", """News Article:
 Title: {title}
@@ -251,22 +251,23 @@ Category: {category}
 Analyze the business impact:""")
         ])
         
-        chain = prompt | self.llm | self.str_parser
-        result = await chain.ainvoke({
-            "title": title,
-            "description": description,
-            "source": source,
-            "category": category
-        })
+        chain = prompt | self.llm | self.json_parser
         
         try:
-            data = json.loads(result)
+            result = await chain.ainvoke({
+                "title": title,
+                "description": description,
+                "source": source,
+                "category": category
+            })
+            
             return {
-                "whyItMatters": data.get("whyItMatters", ""),
-                "actionItems": data.get("actionItems", []),
+                "whyItMatters": result.get("whyItMatters", ""),
+                "actionItems": result.get("actionItems", []),
                 "tokens_used": 0
             }
-        except json.JSONDecodeError:
+        except Exception as e:
+            print(f"Error parsing impact JSON: {e}")
             return {
                 "whyItMatters": "Unable to generate impact analysis.",
                 "actionItems": ["Please try again."],

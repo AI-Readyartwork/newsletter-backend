@@ -1,15 +1,13 @@
 # Railway configuration for Backend (FastAPI)
 [build]
 builder = "nixpacks"
-watchPatterns = ["*.py", "requirements.txt"]
+
+[build.nixpacks]
+nixPkgs = ["python311", "gcc"]
+aptPkgs = ["python3-pip"]
+installCmd = "pip install -r requirements.txt"
 
 [deploy]
 startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
-
-# Environment variables (set these in Railway dashboard)
-# OPENAI_API_KEY
-# SUPABASE_URL
-# SUPABASE_KEY
-# CORS_ORIGINS (comma-separated: https://your-frontend.railway.app,https://yourdomain.com)

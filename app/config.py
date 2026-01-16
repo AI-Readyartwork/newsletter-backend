@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
     
+    # ActiveCampaign
+    ACTIVECAMPAIGN_URL: str = ""
+    ACTIVECAMPAIGN_API_KEY: str = ""
+    ACTIVECAMPAIGN_SENDER_NAME: str = "Ready Artwork"
+    ACTIVECAMPAIGN_SENDER_EMAIL: str = "ai@readyartwork.com"
+    
     # CORS - comma-separated string
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     

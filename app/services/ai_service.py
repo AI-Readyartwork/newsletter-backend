@@ -53,21 +53,9 @@ class AIService:
         prompt = ChatPromptTemplate.from_messages([
             ("system", f"""{date_context}
 
-You are an expert copywriter who creates catchy, hook-style headlines for digital marketing newsletters.
-
-STYLE GUIDELINES:
-- Use power words
-- Add drama and intrigue
-- Include numbers or questions when appropriate
-- Make it clickable but professional
-- Keep it under 10 words
-- Use the current year ({datetime.now().year}) if mentioning dates
-
-EXAMPLES:
-- "Google's $95 Wasteland: How Performance Max Ate Your Budget While You Slept"
-- "The Zero-Click Apocalypse Is Here (And It's Making People Rich)"
-- "SEO's January Awakening: Adapt or Disappear"
-- "Meta's AI Reckoning: Why Your Ad Strategy Just Became Obsolete"
+You are an expert copywriter specializing in hook-style headlines for digital marketing newsletters. 
+Transform headlines into magnetic, click-worthy titles using power words, drama, intrigue, numbers, or questions. Keep under 10 words. 
+Use current year ({datetime.now().year}) if mentioning dates. 
 
 Return ONLY the new headline, nothing else."""),
             ("user", "Rewrite this headline to be more catchy and attention-grabbing:\n\n{title}")
@@ -84,12 +72,12 @@ Return ONLY the new headline, nothing else."""),
             ("system", f"""{date_context}
 
 You are a digital marketing newsletter writer. Create a compelling 1-2 sentence description that hooks the reader.
-
+Write clearly and simply. Use active voice. Avoid corporate buzzwords, —  dashes, and phrases like "delve into" or "furthermore." Every sentence should add value, not filler.
 GUIDELINES:
 - Be intriguing and create curiosity
 - Reference the main topic
 - Use active voice
-- Keep it under 30 words"""),
+- Keep it under 20 words"""),
             ("user", "Write a compelling description for a newsletter with this main story:\n\n{title}")
         ])
         
@@ -111,9 +99,9 @@ GUIDELINES:
             ("system", f"""{date_context}
 
 You are a senior digital marketing journalist. Write a comprehensive, detailed summary of 150-200 words.
-
+Write clearly and simply. Use active voice. Avoid corporate buzzwords, —  dashes, and phrases like "delve into" or "furthermore." Every sentence should add value, not filler.
 REQUIREMENTS:
-- Write EXACTLY 100-150 words (this is critical - count your words!)
+- Write EXACTLY 100-130 words (this is critical - count your words!)
 - Expand on the news with relevant context and analysis
 - Explain the business impact for digital marketers
 - Include specific insights, data points, or examples where relevant
@@ -144,7 +132,7 @@ IMPORTANT:
             ("system", f"""{date_context}
 
 You are a senior digital marketing journalist writing for a B2B newsletter.
-
+Write clearly and simply. Use active voice. Avoid corporate buzzwords, —  dashes, and phrases like "delve into" or "furthermore." Every sentence should add value, not filler.
 Write a compelling 400-500 word article that:
 - Opens with a strong hook
 - Explains the news and its context
@@ -175,7 +163,7 @@ FORMAT: Use short paragraphs (2-3 sentences each) for readability."""),
             ("system", f"""{date_context}
 
 You are a senior digital marketing thought leader writing the main feature article for a prestigious B2B newsletter.
-
+Write clearly and simply. Use active voice. Avoid corporate buzzwords, —  dashes, and phrases like "delve into" or "furthermore." Every sentence should add value, not filler.
 Write a polished, newsletter-ready 250-350 word article that flows naturally.
 
 STRUCTURE:
@@ -235,7 +223,7 @@ STYLE: Concise, impactful, informative. No fluff."""),
             ("system", f"""{date_context}
 
 You are a digital marketing expert. Analyze news impact for business owners.
-
+Write clearly and simply. Use active voice. Avoid corporate buzzwords, —  dashes, and phrases like "delve into" or "furthermore." Every sentence should add value, not filler.
 Provide:
 1. whyItMatters: 1-2 sentence explanation of business impact
 2. actionItems: Array of 1-2 specific actions

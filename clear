@@ -1,0 +1,351 @@
+[33mcommit 03dd613d30b669dc426a49c2368d51c21199308b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mbackend-v1[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Merge: 99a12de 513e0f8
+Author: AI-Readyartwork <ai@readyartwork.com>
+Date:   Fri Jan 16 17:51:28 2026 +0530
+
+    Merge pull request #1 from AI-Readyartwork/feat/activecampaign-integration
+    
+    feat: integrate ActiveCampaign for newsletter management with a new s…
+
+[33mcommit 513e0f8cc298a022ee84374d7d2844f84f89aae6[m[33m ([m[1;31morigin/feat/activecampaign-integration[m[33m)[m
+Author: Dhruv Saija <dhruv.saija@e2m.solutions>
+Date:   Fri Jan 16 17:49:31 2026 +0530
+
+    feat: integrate ActiveCampaign for newsletter management with a new service and API routes, configured via new settings.
+
+[1mdiff --git a/app/api/__init__.py b/app/api/__init__.py[m
+[1mindex 39ecd89..b6e5a7a 100644[m
+[1m--- a/app/api/__init__.py[m
+[1m+++ b/app/api/__init__.py[m
+[36m@@ -6,7 +6,10 @@[m [mrouter = APIRouter()[m
+ from app.api import ai_routes[m
+ from app.api import news_routes[m
+ from app.api import gif_routes[m
+[32m+[m[32mfrom app.api import activecampaign_routes[m
+ [m
+ router.include_router(ai_routes.router, prefix="/ai", tags=["AI"])[m
+ router.include_router(news_routes.router, prefix="/news", tags=["News"])[m
+ router.include_router(gif_routes.router, tags=["GIFs"])[m
+[32m+[m[32mrouter.include_router(activecampaign_routes.router, prefix="/activecampaign", tags=["ActiveCampaign"])[m
+[41m+[m
+[1mdiff --git a/app/api/activecampaign_routes.py b/app/api/activecampaign_routes.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..54b639e[m
+[1m--- /dev/null[m
+[1m+++ b/app/api/activecampaign_routes.py[m
+[36m@@ -0,0 +1,175 @@[m
+[32m+[m[32m"""[m
+[32m+[m[32mActiveCampaign API Routes[m
+[32m+[m
+[32m+[m[32mEndpoints for integrating with ActiveCampaign:[m
+[32m+[m[32m- GET /activecampaign/lists - Fetch subscriber lists[m
+[32m+[m[32m- GET /activecampaign/addresses - Fetch mailing addresses[m
+[32m+[m[32m- POST /activecampaign/push - Create campaign (draft, scheduled, or immediate)[m
+[32m+[m[32m"""[m
+[32m+[m
+[32m+[m[32mfrom fastapi import APIRouter, HTTPException[m
+[32m+[m[32mfrom pydantic import BaseModel[m
+[32m+[m[32mfrom typing import Optional, Literal[m
+[32m+[m
+[32m+[m[32mfrom app.services.activecampaign_service import get_activecampaign_service[m
+[32m+[m
+[32m+[m[32mrouter = APIRouter()[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass PushCampaignRequest(BaseModel):[m
+[32m+[m[32m    """Request body for pushing a newsletter to ActiveCampaign."""[m
+[32m+[m[32m    listId: str[m
+[32m+[m[32m    campaignName: str[m
+[32m+[m[32m    subject: str[m
+[32m+[m[32m    htmlContent: str[m
+[32m+[m[32m    campaignStatus: Literal["draft", "scheduled", "immediate"] = "draft"[m
+[32m+[m[32m    addressId: Optional[str] = None  # Mailing address ID[m
+[32m+[m[32m    scheduledDate: Optional[str] = None  # ISO format: "2026-01-20T10:00:00"[m
+[32m+[m[32m    senderName: Optional[str] = None[m
+[32m+[m[32m    senderEmail: Optional[str] = None[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass PushCampaignResponse(BaseModel):[m
+[32m+[m[32m    """Response from push campaign endpoint."""[m
+[32m+[m[32m    success: bool[m
+[32m+[m[32m    campaignId: str[m
+[32m+[m[32m    status: str[m
+[32m+[m[32m    message: str[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass ListItem(BaseModel):[m
+[32m+[m[32m    """A single subscriber list."""[m
+[32m+[m[32m    id: str[m
+[32m+[m[32m    name: str[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass ListsResponse(BaseModel):[m
+[32m+[m[32m    """Response containing all subscriber lists."""[m
+[32m+[m[32m    lists: list[ListItem][m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass AddressItem(BaseModel):[m
+[32m+[m[32m    """A single mailing address."""[m
+[32m+[m[32m    id: str[m
+[32m+[m[32m    companyName: str[m
+[32m+[m[32m    display: str[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass AddressesResponse(BaseModel):[m
+[32m+[m[32m    """Response containing all mailing addresses."""[m
+[32m+[m[32m    addresses: list[AddressItem][m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/lists", response_model=ListsResponse)[m
+[32m+[m[32masync def get_lists():[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Fetch all subscriber lists from ActiveCampaign.[m
+[32m+[m[41m    [m
+[32m+[m[32m    Returns:[m
+[32m+[m[32m        List of subscriber lists with id and name[m
+[32m+[m[32m    """[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = get_activecampaign_service()[m
+[32m+[m[32m        lists = await service.get_lists()[m
+[32m+[m[32m        return {"lists": lists}[m
+[32m+[m[32m    except ValueError as e:[m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=500,[m
+[32m+[m[32m            detail=f"ActiveCampaign not configured: {str(e)}"[m
+[32m+[m[32m        )[m
+[32m+[m[32m    except Exception as e:[m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=500,[m
+[32m+[m[32m            detail=f"Failed to fetch lists: {str(e)}"[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/addresses", response_model=AddressesResponse)[m
+[32m+[m[32masync def get_addresses():[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Fetch all mailing addresses from ActiveCampaign.[m
+[32m+[m[41m    [m
+[32m+[m[32m    Returns:[m
+[32m+[m[32m        List of mailing addresses with id, companyName, and display string[m
+[32m+[m[32m    """[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = get_activecampaign_service()[m
+[32m+[m[32m        addresses = await service.get_addresses()[m
+[32m+[m[32m        return {"addresses": addresses}[m
+[32m+[m[32m    except ValueError as e:[m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=500,[m
+[32m+[m[32m            detail=f"ActiveCampaign not configured: {str(e)}"[m
+[32m+[m[32m        )[m
+[32m+[m[32m    except Exception as e:[m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=500,[m
+[32m+[m[32m            detail=f"Failed to fetch addresses: {str(e)}"[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.post("/push", response_model=PushCampaignResponse)[m
+[32m+[m[32masync def push_campaign(request: PushCampaignRequest):[m
+[32m+[m[32m    """[m
+[32m+[m[32m    Create a campaign in ActiveCampaign.[m
+[32m+[m[41m    [m
+[32m+[m[32m    Supports three modes:[m
+[32m+[m[32m    - draft: Creates campaign as draft (not sent)[m
+[32m+[m[32m    - scheduled: Schedules campaign for future send (requires scheduledDate)[m
+[32m+[m[32m    - immediate: Sends campaign immediately[m
+[32m+[m[41m    [m
+[32m+[m[32m    Args:[m
+[32m+[m[32m        request: Campaign details including list ID, name, subject, HTML content, and status[m
+[32m+[m[41m        [m
+[32m+[m[32m    Returns:[m
+[32m+[m[32m        Success status with campaign ID and status[m
+[32m+[m[32m    """[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        service = get_activecampaign_service()[m
+[32m+[m[32m        result = await service.push_newsletter([m
+[32m+[m[32m            list_id=request.listId,[m
+[32m+[m[32m            campaign_name=request.campaignName,[m
+[32m+[m[32m            subject=request.subject,[m
+[32m+[m[32m            html_content=request.htmlContent,[m
+[32m+[m[32m            campaign_status=request.campaignStatus,[m
+[32m+[m[32m            address_id=request.addressId,[m
+[32m+[m[32m            scheduled_date=request.scheduledDate,[m
+[32m+[m[32m            sender_name=request.senderName,[m
+[32m+[m[32m            sender_email=request.senderEmail[m
+[32m+[m[32m        )[m
+[32m+[m[41m        [m
+[32m+[m[32m        # Generate appropriate message based on status[m
+[32m+[m[32m        status_messages = {[m
+[32m+[m[32m            "draft": "Campaign draft created successfully",[m
+[32m+[m[32m            "scheduled": f"Campaign scheduled for {request.scheduledDate}",[m
+[32m+[m[32m            "immediate": "Campaign sent successfully"[m
+[32m+[m[32m        }[m
+[32m+[m[41m        [m
+[32m+[m[32m        return {[m
+[32m+[m[32m            "success": True,[m
+[32m+[m[32m            "campaignId": result["campaign_id"],[m
+[32m+[m[32m            "status": result["status"],[m
+[32m+[m[32m            "message": status_messages.get(result["status"], "Campaign created")[m
+[32m+[m[32m        }[m
+[32m+[m[32m    except ValueError as e:[m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=500,[m
+[32m+[m[32m            detail=f"ActiveCampaign not configured: {str(e)}"[m
+[32m+[m[32m        )[m
+[32m+[m[32m    except Exception as e:[m
+[32m+[m[32m        error_msg = str(e)[m
+[32m+[m[32m        # Try to extract more details from HTTP errors[m
+[32m+[m[32m        if hasattr(e, 'response'):[m
+[32m+[m[32m            try:[m
+[32m+[m[32m                error_data = e.response.json()[m
+[32m+[m[32m                if 'message' in error_data:[m
+[32m+[m[32m                    error_msg = error_data['message'][m
+[32m+[m[32m                elif 'errors' in error_data:[m
+[32m+[m[32m                    error_msg = str(error_data['errors'])[m
+[32m+[m[32m            except:[m
+[32m+[m[32m                pass[m
+[32m+[m[41m        [m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=500,[m
+[32m+[m[32m            detail=f"Failed to push campaign: {error_msg}"[m
+[32m+[m[32m        )[m
+[1mdiff --git a/app/config.py b/app/config.py[m
+[1mindex 5a877c6..e46154b 100644[m
+[1m--- a/app/config.py[m
+[1m+++ b/app/config.py[m
+[36m@@ -19,6 +19,12 @@[m [mclass Settings(BaseSettings):[m
+     SUPABASE_URL: str = ""[m
+     SUPABASE_KEY: str = ""[m
+     [m
+[32m+[m[32m    # ActiveCampaign[m
+[32m+[m[32m    ACTIVECAMPAIGN_URL: str = ""[m
+[32m+[m[32m    ACTIVECAMPAIGN_API_KEY: str = ""[m
+[32m+[m[32m    ACTIVECAMPAIGN_SENDER_NAME: str = "Ready Artwork"[m
+[32m+[m[32m    ACTIVECAMPAIGN_SENDER_EMAIL: str = "ai@readyartwork.com"[m
+[32m+[m[41m    [m
+     # CORS - comma-separated string[m
+     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"[m
+     [m
+[1mdiff --git a/app/services/activecampaign_service.py b/app/services/activecampaign_service.py[m
+[1mnew file mode 100644[m
+[1mindex 0000000..ec61874[m
+[1m--- /dev/null[m
+[1m+++ b/app/services/activecampaign_service.py[m
+[36m@@ -0,0 +1,345 @@[m
+[32m+[m[32m"""[m
+[32m+[m[32mActiveCampaign API Service[m
+[32m+[m
+[32m+[m[32mHandles all interactions with the ActiveCampaign API:[m
+[32m+[m[32m- v3 API for fetching lists and creating messages[m
+[32m+[m[32m- v1 API for campaign creation (v3 has limitations for campaign-message linking)[m
+[32m+[m
+[32m+[m[32mSupports campaign status:[m
+[32m+[m[32m- Draft (status=0)[m
+[32m+[m[32m- Scheduled (status=1 with sdate)[m
+[32m+[m[32m- Send Immediately (status=1 without sdate)[m
+[32m+[m[32m"""[m
+[32m+[m
+[32m+[m[32mimport httpx[m
+[32m+[m[32mfrom typing import Optional[m
+[32m+[m[32mfrom datetime import datetime[m
+[32m+[m[32mfrom app.config import settings[m
+[32m+[m[32mimport logging[m
+[32m+[m
+[32m+[m[32mlogger = logging.getLogger(__name__)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mclass ActiveCampaignService:[m
+[32m+[m[32m    """Service class for ActiveCampaign API interactions."""[m
+[32m+[m[41m    [m
+[32m+[m[32m    def __init__(self):[m
+[32m+[m[32m        self.base_url = settings.ACTIVECAMPAIGN_URL[m
+[32m+[m[32m        self.api_key = settings.ACTIVECAMPAIGN_API_KEY[m
+[32m+[m[32m        self.sender_name = settings.ACTIVECAMPAIGN_SENDER_NAME[m
+[32m+[m[32m        self.sender_email = settings.ACTIVECAMPAIGN_SENDER_EMAIL[m
+[32m+[m[41m        [m
+[32m+[m[32m        if not self.base_url or not self.api_key:[m
+[32m+[m[32m            raise ValueError("ActiveCampaign URL and API Key must be configured")[m
+[32m+[m[41m        [m
+[32m+[m[32m        # Ensure base URL doesn't have trailing slash[m
+[32m+[m[32m        self.base_url = self.base_url.rstrip('/')[m
+[32m+[m[41m        [m
+[32m+[m[32m        # Headers for v3 API[m
+[32m+[m[32m        self.headers_v3 = {[m
+[32m+[m[32m            "Api-Token": self.api_key,[m
+[32m+[m[32m            "Content-Type": "application/json"[m
+[32m+[m[32m        }[m
+[32m+[m[41m    [m
+[32m+[m[32m    def _handle_response_v3(self, response, operation_name: str) -> dict:[m
+[32m+[m[32m        """Handle v3 API response and raise descriptive errors."""[m
+[32m+[m[32m        if response.status_code >= 400:[m
+[32m+[m[32m            try:[m
+[32m+[m[32m                error_data = response.json()[m
+[32m+[m[32m                if 'errors' in error_data:[m
+[32m+[m[32m                    error_msg = str(error_data['errors'])[m
+[32m+[m[32m                elif 'message' in error_data:[m
+[32m+[m[32m                    error_msg = error_data['message'][m
+[32m+[m[32m                else:[m
+[32m+[m[32m                    error_msg = str(error_data)[m
+[32m+[m[32m            except:[m
+[32m+[m[32m                error_msg = response.text or f"HTTP {response.status_code}"[m
+[32m+[m[41m            [m
+[32m+[m[32m            raise Exception(f"{operation_name} failed: {error_msg} (HTTP {response.status_code})")[m
+[32m+[m[41m        [m
+[32m+[m[32m        return response.json()[m
+[32m+[m[41m    [m
+[32m+[m[32m    def _handle_response_v1(self, response, operation_name: str) -> dict:[m
+[32m+[m[32m        """Handle v1 API response and raise descriptive errors."""[m
+[32m+[m[32m        try:[m
+[32m+[m[32m            data = response.json()[m
+[32m+[m[32m        except:[m
+[32m+[m[32m            raise Exception(f"{operation_name} failed: {response.text}")[m
+[32m+[m[41m        [m
+[32m+[m[32m        # v1 API returns result_code: 1 for success, 0 for failure[m
+[32m+[m[32m        if data.get('result_code') == 0:[m
+[32m+[m[32m            error_msg = data.get('result_message', 'Unknown error')[m
+[32m+[m[32m            raise Exception(f"{operation_name} failed: {error_msg}")[m
+[32m+[m[41m        [m
+[32m+[m[32m        return data[m
+[32m+[m[41m    [m
+[32m+[m[32m    async def get_lists(self) -> list[dict]:[m
+[32m+[m[32m        """[m
+[32m+[m[32m        Fetch all subscriber lists from ActiveCampaign using v3 API.[m
+[32m+[m[41m        [m
+[32m+[m[32m        Returns:[m
+[32m+[m[32m            List of dicts with 'id' and 'name' for each list[m
+[32m+[m[32m        """[m
+[32m+[m[32m        async with httpx.AsyncClient() as client:[m
+[32m+[m[32m            response = await client.get([m
+[32m+[m[32m                f"{self.base_url}/api/3/lists",[m
+[32m+[m[32m                headers=self.headers_v3,[m
+[32m+[m[32m                timeout=30.0[m
+[32m+[m[32m            )[m
+[32m+[m[32m            data = self._handle_response_v3(response, "Get lists")[m
+[32m+[m[41m            [m
+[32m+[m[32m            return [[m
+[32m+[m[32m                {"id": lst["id"], "name": lst["name"]}[m
+[32m+[m[32m                for lst in data.get("lists", [])[m
+[32m+[m[32m            ][m
+[32m+[m[41m    [m
+[32m+[m[32m    async def get_addresses(self) -> list[dict]:[m
+[32m+[m[32m        """[m
+[32m+[m[32m        Fetch all mailing addresses from ActiveCampaign using v3 API.[m
+[32m+[m[41m        [m
+[32m+[m[32m        Returns:[m
+[32m+[m[32m            List of dicts with 'id', 'companyName', and formatted address[m
+[32m+[m[32m        """[m
+[32m+[m[32m        async with httpx.AsyncClient() as client:[m
+[32m+[m[32m            response = await client.get([m
+[32m+[m[32m                f"{self.base_url}/api/3/addresses",[m
+[32m+[m[32m                headers=self.headers_v3,[m
+[32m+[m[32m                timeout=30.0[m
+[32m+[m[32m            )[m
+[32m+[m[32m            data = self._handle_response_v3(response, "Get addresses")[m
+[32m+[m[41m            [m
+[32m+[m[32m            addresses = [][m
+[32m+[m[32m            for addr in data.get("addresses", []):[m
+[32m+[m[32m                # Build display string[m
+[32m+[m[32m                parts = [addr.get("companyName", "")][m
+[32m+[m[32m                if addr.get("address1"):[m
+[32m+[m[32m                    parts.append(addr.get("address1"))[m
+[32m+[m[32m                if 

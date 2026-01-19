@@ -496,7 +496,20 @@ Return ONLY valid JSON: {{{{"news": [...]}}}}"""),
                     clean_result = re.sub(r'^```(?:json)?\s*', '', clean_result)
                     clean_result = re.sub(r'\s*```$', '', clean_result)
                 
-                search_data = json.loads(clean_result)
+                # Additional cleanup: try to extract JSON if there's text before/after
+                json_match = re.search(r'\{.*\}', clean_result, re.DOTALL)
+                if json_match:
+                    clean_result = json_match.group(0)
+                
+                print(f"[DEBUG] Cleaned result preview: {clean_result[:200]}...")
+                
+                try:
+                    search_data = json.loads(clean_result)
+                except json.JSONDecodeError as json_err:
+                    print(f"[ERROR] JSON parsing failed: {json_err}")
+                    print(f"[ERROR] Raw response: {search_result[:500]}...")
+                    print(f"[ERROR] Cleaned result: {clean_result[:500]}...")
+                    raise
                 raw_articles = search_data.get("news", [])
                 
                 if raw_articles:
